@@ -1,5 +1,5 @@
 use dparse::basic;
-use dparse::parse::{Parse, ParseStream};
+use dparse::parse::{Parse};
 use dparse_derive::Parse;
 use crate::hscript::litstr::StrLit;
 use crate::hscript::parselt::Ident;
@@ -40,10 +40,16 @@ pub enum FactorOp {
     Sub(basic::Dash),
 }
 
-#[test]
-fn test_simple() {
-    let raw = "a + b * c";
-    let mut stream = ParseStream::new(raw);
-    let expr = Expr::parse(&mut stream).unwrap();
-    println!("{:#?}", expr);
+#[cfg(test)]
+mod test {
+    use dparse::parse::{Parse, ParseStream};
+    use crate::hscript::expr::Expr;
+
+    #[test]
+    fn test_simple() {
+        let raw = "a + b * c";
+        let mut stream = ParseStream::new(raw);
+        let expr = Expr::parse(&mut stream).unwrap();
+        println!("{:#?}", expr);
+    }
 }

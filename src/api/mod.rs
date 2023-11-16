@@ -1,5 +1,3 @@
-use crate::html::prelude::{div, h1, h2, p};
-
 mod infra;
 
 pub use infra::{App, Api};

@@ -1,11 +1,13 @@
+use async_trait::async_trait;
 use crate::api::Api;
-use crate::api::infra::Response;
+use crate::api::infra::{Request, Response};
 use crate::html::prelude::*;
 
 pub struct About;
 
+#[async_trait]
 impl Api for About {
-    fn get(&self) -> Response {
+    async fn get(&self, _req: Request) -> anyhow::Result<Response> {
         let html = div()
             .child(h1("About Me"))
             .child(h2("Dillon Shaffer - Software Tinkerer"))
@@ -30,6 +32,6 @@ impl Api for About {
                     .child(li().child("Linux"))
                     .child(li().child("Git"))));
 
-        Response::html(html)
+        Ok(Response::html(html))
     }
 }
