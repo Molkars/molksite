@@ -1,6 +1,6 @@
+use dparse::basic;
 use dparse_derive::Parse;
-use crate::hscript::litstr;
-use crate::hscript::parselt::{Ident, Pound};
+use crate::hscript::expr::Expr;
 use crate::html::Tag;
 
 #[derive(Parse, Debug)]
@@ -10,13 +10,13 @@ pub struct Program {
 
 #[derive(Parse, Debug)]
 pub enum Decl {
-    Command(Command),
+    Include(Include),
     Tag(Tag),
 }
 
 #[derive(Parse, Debug)]
-pub struct Command {
-    pub pound: Pound,
-    pub name: Ident,
-    pub path: litstr::StrLit,
+pub struct Include {
+    pub pound: basic::Hash,
+    pub name: basic::CIdent,
+    pub path: Expr,
 }

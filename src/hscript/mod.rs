@@ -1,8 +1,5 @@
-mod litstr;
-
 mod program;
 mod expr;
-mod parselt;
 
 
 #[cfg(test)]
@@ -15,6 +12,10 @@ mod tests {
         let input = r#"
 #include "nav.html"
 
+#if mode == "dev"
+    <div>DEV MODE</div>
+#end ""
+
 <div id="root">
     <h1>Hello, world!</h1>
     <h2>Dillon Shaffer</h2>
@@ -22,7 +23,12 @@ mod tests {
     "#;
 
         let mut stream = ParseStream::new(input);
-        let program = Program::parse(&mut stream).unwrap();
+        let program = Program::parse(&mut stream)
+            .map_err(|e| {
+                eprintln!("{}", e);
+                e
+            })
+            .unwrap();
         println!("{:#?}", program);
     }
 }

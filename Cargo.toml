@@ -9,8 +9,10 @@ edition = "2021"
 anyhow = { version = "1.0.75", features = [] }
 async-trait = "*"
 bytes = "*"
-dparse = { git = "https://github.com/Molkars/dparse.git", version = "0.1.7" }
-dparse-derive = { git = "https://github.com/Molkars/dparse-derive.git", version = "0.1.1" }
+#dparse = { git = "https://github.com/Molkars/dparse.git", version = "0.1.8", features = ["track_caller"] }
+dparse = { path = "../dparse" }
+#dparse-derive = { git = "https://github.com/Molkars/dparse-derive.git", version = "0.1.1" }
+dparse-derive = { path = "../dparse-derive" }
 h2 = "0.4.0"
 http = "*"
 #dparse-derive = { path = "../dparse-derive" }

@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Display, Formatter};
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{Error, LitStr};
@@ -140,24 +140,6 @@ impl Parse for Tag {
 
 syn::custom_punctuation!(ExplicitCloseTag, </);
 syn::custom_punctuation!(InlineCloseTag, />);
-
-#[derive(Debug)]
-struct ClosingTagItem {
-    name: syn::Ident,
-}
-
-impl Parse for ClosingTagItem {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        input.parse::<syn::Token![<]>()?;
-        input.parse::<syn::Token![/]>()?;
-        let name = input.parse::<syn::Ident>()?;
-        input.parse::<syn::Token![>]>()?;
-        Ok(Self {
-            name,
-        })
-    }
-}
-
 enum ClosingTag {
     Inline,
     Explicit(syn::Ident),

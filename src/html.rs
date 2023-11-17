@@ -166,12 +166,6 @@ mod parse {
     use super::{Tag, Attribute, Closing, Child};
     use dparse::parse::{Parse, WithMessage, ParseError, ParseStream, Span};
 
-    struct OpenTag {
-        name: String,
-        attributes: Vec<Attribute>,
-        closed: bool,
-    }
-
     struct ClosingTag {
         name: String,
     }

@@ -1,13 +1,10 @@
 use dparse::basic;
-use dparse::parse::{Parse};
 use dparse_derive::Parse;
-use crate::hscript::litstr::StrLit;
-use crate::hscript::parselt::Ident;
-
 
 #[derive(Parse, Debug)]
 #[dparse(kind = "expr")]
 pub enum Expr {
+    Equality(Box<Self>, EqualityOp, Box<Self>),
     Term(Box<Self>, TermOp, Box<Self>),
     Factor(Box<Self>, FactorOp, Box<Self>),
     Unary(UnaryOp, Box<Self>),
@@ -16,8 +13,8 @@ pub enum Expr {
 
 #[derive(Parse, Debug)]
 pub enum Primary {
-    Ident(Ident),
-    StrLit(StrLit),
+    Ident(basic::CIdent),
+    StrLit(basic::LitCStr),
     // LitInt(basic::LitInt),
 }
 
@@ -38,6 +35,12 @@ pub enum TermOp {
 pub enum FactorOp {
     Add(basic::Plus),
     Sub(basic::Dash),
+}
+
+#[derive(Parse, Debug)]
+pub enum EqualityOp {
+    Eq(basic::DoubleEquals),
+    Neq(basic::BangEquals),
 }
 
 #[cfg(test)]

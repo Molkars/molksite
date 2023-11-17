@@ -84,13 +84,11 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "dparse"
-version = "0.1.7"
-source = "git+https://github.com/Molkars/dparse.git#4945bb79269c33040926d0a4786637024cea94f3"
+version = "0.1.8"
 
 [[package]]
 name = "dparse-derive"
 version = "0.1.1"
-source = "git+https://github.com/Molkars/dparse-derive.git#e1bebf377ade6d4b1379fa2d2ce37ac0f3908a20"
 dependencies = [
  "proc-macro2",
  "quote",
