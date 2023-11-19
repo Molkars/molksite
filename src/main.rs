@@ -4,6 +4,9 @@ use std::net::{SocketAddr};
 use std::str::FromStr;
 use std::sync::Arc;
 use anyhow::{anyhow, Context};
+use http::Response;
+use hyper::server::conn::http1;
+use hyper::service::service_fn;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::net::TcpListener;
 use tokio::select;
@@ -15,6 +18,8 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use api::app;
 use crate::api::App;
+
+use hyper_util::rt::TokioIo;
 
 mod html;
 mod api;
@@ -67,7 +72,7 @@ async fn main() -> anyhow::Result<()> {
 
 async fn server(
     api: Arc<App>,
-    shutdown_flag: watch::Receiver<bool>,
+    mut shutdown_flag: watch::Receiver<bool>,
 ) -> anyhow::Result<impl Future<Output=()>> {
     let addr = SocketAddr::from_str("0.0.0.0:8090")
         .map_err(|e| anyhow!("failed to parse address: {}", e))?;
@@ -75,46 +80,34 @@ async fn server(
         .with_context(|| format!("failed to bind address {}", addr))?;
     println!("listening on {}", addr);
 
+
     let future = async move {
-        println!("start-up");
-        let mut shutdown_flag = shutdown_flag;
         loop {
-            let conn = select! {
-                r = listener.accept() => r,
+            let result = select! {
                 _ = shutdown_flag.changed() => break,
+                result = listener.accept() => result,
             };
-            let (stream, addr) = match conn {
-                Ok((stream, addr)) => (stream, addr),
+
+            let (conn, _addr) = match result {
+                Ok((conn, addr)) => (conn, addr),
                 Err(e) => {
                     eprintln!("failed to accept connection: {}", e);
                     continue;
                 }
             };
 
-            let h2 = h2::server::handshake(stream).await;
-            let mut h2 = match h2 {
-                Ok(h2) => h2,
-                Err(e) => {
-                    eprintln!("failed to perform HTTP/2 handshake: {}", e);
-                    continue;
-                }
-            };
-
-            while let Some(request) = h2.accept().await {
-                let Ok((request, response)) = request else {
-                    eprintln!("failed to accept request: {}", addr);
-                    continue;
-                };
-                println!("received request: {:?}", request);
-
-                let api = api.clone();
-                tokio::spawn(async move {
-                    let result = api.handle(request, response).await;
-                    if let Err(e) = result {
-                        eprintln!("failed to handle request: {}", e);
-                    }
+            let io = TokioIo::new(conn);
+            let api = api.clone();
+            tokio::task::spawn(async move {
+                let builder = http1::Builder::new();
+                let service = service_fn(|req| async {
+                    api.handle(req).await
                 });
-            }
+
+                if let Err(e) = builder.serve_connection(io, service).await {
+                    eprintln!("failed to serve connection: {}", e);
+                }
+            });
         }
     };
 

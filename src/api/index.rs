@@ -2,7 +2,6 @@ use anyhow::Context;
 use async_trait::async_trait;
 use crate::api::Api;
 use crate::api::infra::{Request, Response};
-use crate::html::prelude::{body, h1, header, main, p};
 
 pub struct Index;
 

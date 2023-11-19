@@ -1,12 +1,15 @@
-
 use std::collections::{hash_map, HashMap};
-use std::io::Cursor;
-use anyhow::{Context};
+use std::io::{Cursor};
+use std::path::Path;
+use anyhow::{anyhow, Context};
 use async_trait::async_trait;
-use bytes::Bytes;
-use h2::RecvStream;
-use h2::server::SendResponse;
-use http::StatusCode;
+use bytes::{Buf, Bytes};
+use http_body_util::{BodyExt, Full};
+use hyper::body::Incoming as BodyIncoming;
+
+pub async fn render(path: impl AsRef<Path>) -> anyhow::Result<> {
+
+}
 
 #[derive(Default)]
 pub struct App {
@@ -20,32 +23,30 @@ pub struct Response {
 
 pub struct Request {
     parts: http::request::Parts,
-    body: RecvStream,
+    body: Option<BodyIncoming>,
 }
 
 #[async_trait]
 pub trait FromBody: Sized {
-    async fn from_body(body: Vec<u8>) -> anyhow::Result<Self>;
+    async fn from_body(body: &[u8]) -> anyhow::Result<Self>;
 }
 
 #[async_trait]
 impl FromBody for String {
-    async fn from_body(body: Vec<u8>) -> anyhow::Result<Self> {
-        String::from_utf8(body)
+    async fn from_body(body: &[u8]) -> anyhow::Result<Self> {
+        String::from_utf8(Vec::from(body))
             .with_context(|| "failed to parse body as utf8")
     }
 }
 
 impl Request {
     pub async fn body<T: FromBody>(&mut self) -> anyhow::Result<T> {
-        let mut bytes = Vec::new();
-        while let Some(chunk) = self.body.data().await {
-            let chunk = chunk
-                .with_context(|| "failed to read chunk")?;
-            bytes.extend_from_slice(&chunk);
-        }
-        let body = T::from_body(bytes).await?;
-        Ok(body)
+        let body = self.body.take()
+            .ok_or_else(|| anyhow!("request body already consumed"))?;
+        let buf = body.collect().await
+            .context("failed to read request body")?;
+        let buf = buf.aggregate();
+        T::from_body(buf.chunk()).await
     }
 }
 
@@ -97,6 +98,13 @@ impl Response {
     pub fn internal_server_error(self) -> Response {
         Response {
             code: 500,
+            ..self
+        }
+    }
+
+    pub fn not_found(self) -> Response {
+        Response {
+            code: 404,
             ..self
         }
     }
@@ -157,18 +165,21 @@ impl App {
     }
 
     pub async fn handle(&self,
-                        request: http::Request<RecvStream>,
-                        mut send_response: SendResponse<Bytes>) -> anyhow::Result<()> {
+                        request: http::Request<BodyIncoming>,
+    ) -> anyhow::Result<http::Response<Full<Bytes>>> {
         let path = request.uri().path().to_string();
         let method = request.method().to_string();
         let Some(api) = self.routes.get(&path) else {
-            return Ok(());
+            return http::Response::builder()
+                .status(404)
+                .body(Full::new(Bytes::from("Not Found")))
+                .map_err(|e| anyhow!("failed to build response: {}", e));
         };
 
         let (parts, body) = request.into_parts();
         let request = Request {
             parts,
-            body,
+            body: Some(body),
         };
         let response = match method.as_str() {
             "GET" => api.get(request),
@@ -185,44 +196,25 @@ impl App {
         let response = response.await;
 
         match response {
-            Ok(response) if response.code == 0 => {}
-            Ok(response) => {
-                match StatusCode::from_u16(response.code) {
-                    Ok(code) => {
-                        let mut res = http::Response::new(());
-                        *res.status_mut() = code;
-                        if let Some((content_type, body)) = &response.body {
-                            res.headers_mut().insert(
-                                http::header::CONTENT_TYPE,
-                                http::HeaderValue::from_str(content_type)
-                                    .expect("failed to parse content type"),
-                            );
-                            res.headers_mut().insert(
-                                http::header::CONTENT_LENGTH,
-                                http::HeaderValue::from_str(&body.get_ref().len().to_string())
-                                    .expect("failed to parse content length"));
-                        }
-                        let mut send = send_response.send_response(res, false)?;
-                        if let Some((_, body)) = response.body {
-                            let bytes = body.into_inner();
-                            let body = Bytes::from(bytes);
-                            send.send_data(body, true)?;
-                        }
-                    }
-                    Err(_) => {
-                        let mut res = http::Response::new(());
-                        *res.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
-                        let _ = send_response.send_response(res, true);
-                    }
+            Ok(res) => {
+                let mut builder = http::Response::builder()
+                    .status(res.code);
+                if let Some((content_type, body)) = res.body {
+                    builder = builder.header("Content-Type", content_type);
+                    builder.body(Full::new(Bytes::from(body.into_inner())))
+                        .map_err(|e| anyhow!("failed to build response: {}", e))
+                } else {
+                    builder.body(Full::new(Bytes::from_static(b"")))
+                        .map_err(|e| anyhow!("failed to build response: {}", e))
                 }
             }
-            Err(_e) => {
-                let mut res = http::Response::new(());
-                *res.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
-                let _ = send_response.send_response(res, true);
+            Err(e) => {
+                eprintln!("failed to handle request: {}", e);
+                http::Response::builder()
+                    .status(500)
+                    .body(Full::new(Bytes::from("Internal Server Error")))
+                    .map_err(|e| anyhow!("failed to build response: {}", e))
             }
         }
-
-        Ok(())
     }
 }
