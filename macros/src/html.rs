@@ -7,8 +7,8 @@ pub(crate) use ident::*;
 mod name;
 pub(crate) use name::*;
 
-mod html_item;
-pub(crate) use html_item::*;
+mod item;
+pub(crate) use item::*;
 
 mod opening_tag;
 pub(crate) use opening_tag::*;

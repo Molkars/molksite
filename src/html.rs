@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 
 use std::borrow::Cow;
+use std::error::Error;
+use std::fmt::Write;
 
 pub const DOCTYPE: RawHtml = RawHtml::from_static("<!DOCTYPE html>\n");
 
@@ -80,6 +82,22 @@ pub trait Render {
         let mut out = String::new();
         self.render_to(&mut out)?;
         Ok(out)
+    }
+}
+
+impl<'a, T: Render> Render for &'a T {
+    fn render_to<W: Write>(&self, out: &mut W) -> Result<(), Box<dyn Error>> {
+        T::render_to(*self, out)
+    }
+}
+
+pub trait Compile {
+    fn to_html(self) -> HtmlBundle;
+}
+
+impl<T: Into<HtmlBundle>> Compile for T {
+    fn to_html(self) -> HtmlBundle {
+        self.into()
     }
 }
 

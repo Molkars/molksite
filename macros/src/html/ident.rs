@@ -3,9 +3,55 @@ use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::token;
+use syn::{token, Token};
 
-pub(crate) struct Ident(Punctuated<syn::Ident, token::Minus>);
+enum NameLink {
+    Ident(syn::Ident),
+    Type(Token![type]),
+    For(Token![for]),
+}
+
+impl PartialEq for NameLink {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_string() == other.to_string()
+    }
+}
+
+impl Display for NameLink {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NameLink::Ident(v) => write!(f, "{v}"),
+            NameLink::Type(_) => write!(f, "type"),
+            NameLink::For(_) => write!(f, "for"),
+        }
+    }
+}
+
+impl ToTokens for NameLink {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            NameLink::Ident(item) => item.to_tokens(tokens),
+            NameLink::Type(item) => item.to_tokens(tokens),
+            NameLink::For(item) => item.to_tokens(tokens),
+        }
+    }
+}
+
+impl Parse for NameLink {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        if let Ok(item) = input.parse() {
+            Ok(Self::Ident(item))
+        } else if let Ok(item) = input.parse() {
+            Ok(Self::Type(item))
+        } else if let Ok(item) = input.parse() {
+            Ok(Self::For(item))
+        } else {
+            Err(input.error("invalid name token"))
+        }
+    }
+}
+
+pub(crate) struct Ident(Punctuated<NameLink, token::Minus>);
 
 impl Parse for Ident {
     fn parse(input: ParseStream) -> syn::Result<Self> {

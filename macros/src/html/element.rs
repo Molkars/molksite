@@ -20,14 +20,30 @@ impl Html {
     pub(crate) fn compile_item(item: &html::Item) -> TokenStream {
         match item {
             html::Item::Element(element) => Self::compile_element(element),
-            html::Item::Expr(expr) => Self::compile_expr(expr),
+            html::Item::Lit(item) => Self::compile_lit(item),
+            html::Item::Embedded(expr) => Self::compile_expr(expr),
+            html::Item::For(item) => Self::compile_for(item),
+            html::Item::If(item) => Self::compile_if(item),
+            html::Item::Match(item) => Self::compile_match(item),
+            html::Item::Local(item) => Self::compile_local(item),
+            html::Item::Block(item) => Self::compile_block(item),
+            html::Item::Return(item) => Self::compile_return(item),
+            html::Item::Break(item) => Self::compile_break(item),
+            html::Item::Continue(item) => Self::compile_continue(item),
+            html::Item::Yield(item) => Self::compile_yield(item),
         }
     }
 
-    fn compile_expr(expr: &html::HtmlItemExpr) -> TokenStream {
+    fn compile_lit(item: &syn::Lit) -> TokenStream {
+        quote! {
+            __html_bundle__.add_text(#item)
+        }
+    }
+
+    fn compile_expr(expr: &html::Embedded) -> TokenStream {
         let value = &expr.value;
         quote! {
-            __html_bundle__.add_text({ #value });
+            __html_bundle__.add_text({ &#value });
         }
     }
 
@@ -37,10 +53,10 @@ impl Html {
                 let value = ident.to_string();
                 LitStr::new(&value, ident.span()).into_token_stream()
             }
-            html::Name::Expr(value) => {
-                let value = &value.expr;
+            html::Name::Embedded(value) => {
+                let value = &value.value;
                 quote! {
-                    ::std::string::String::from({ #value })
+                    &#value
                 }
             }
         }
@@ -51,7 +67,7 @@ impl Html {
         let element_style = match element {
             Element::Normal(_) => quote! { crate::html::ElementStyle::Normal },
             Element::Unclosed(_) => quote! { crate::html::ElementStyle::Unclosed },
-            Element::Inline(_) => quote! { crate::Html::ElementStyle::Inline },
+            Element::Inline(_) => quote! { crate::html::ElementStyle::Inline },
         };
         let attrs = element.attrs()
             .map(|attr| {
@@ -90,10 +106,126 @@ impl Html {
 
     fn compile_attribute_value(attribute_value: &html::AttributeValue) -> TokenStream {
         match attribute_value {
-            html::AttributeValue::Path(path) => quote!{ ::std::string::String::from(#path) },
-            html::AttributeValue::Lit(lit) => quote! { ::std::string::ToString::to_string(&#lit) },
-            html::AttributeValue::Block(block) => quote! { ::std::string::String::from(#block) },
-            html::AttributeValue::Expr(expr) => quote! { ::std::string::String::from(#expr) },
+            html::AttributeValue::Path(path) => quote! { &#path },
+            html::AttributeValue::Lit(lit) => quote! { &#lit },
+            html::AttributeValue::Block(block) => quote! { &#block },
+            html::AttributeValue::Embedded(expr) => quote! { &#expr },
+        }
+    }
+
+    fn compile_for(html::ExprForLoop { token, pat, in_token, expr, block }: &html::ExprForLoop) -> TokenStream {
+        let block = Self::compile_block(block);
+        quote! {
+            #token
+            #pat
+            #in_token
+            #expr
+            #block
+        }
+    }
+
+    fn compile_if(html::ExprIf { if_token, cond, then_branch, else_branch }: &html::ExprIf) -> TokenStream {
+        let then_branch = Self::compile_block(then_branch);
+        let else_branch = else_branch
+            .as_ref()
+            .map(|(_, item)| Self::compile_else(&**item));
+        quote! {
+            #if_token
+            #cond
+            #then_branch
+            #else_branch
+        }
+    }
+
+    fn compile_else(item: &html::ExprElse) -> TokenStream {
+        match item {
+            html::ExprElse::If(item) => Self::compile_if(item),
+            html::ExprElse::Block(item) => Self::compile_block(item),
+        }
+    }
+
+    fn compile_match(html::Match { match_token, expr, brace_token: _, arms }: &html::Match) -> TokenStream {
+        let arms = arms.iter().map(Self::compile_arm);
+        quote! {
+            #match_token
+            #expr
+            {
+                #(#arms)*
+            }
+        }
+    }
+
+    fn compile_arm(html::Arm { pat, guard, fat_arrow_token, body, comma }: &html::Arm) -> TokenStream {
+        let guard = guard.as_ref().map(|(token, expr)| quote! {
+            #token
+            #expr
+        });
+        let body = Self::compile_item(body);
+        quote! {
+            #pat
+            #guard
+            #fat_arrow_token
+            #body
+            #comma
+        }
+    }
+
+    fn compile_local(html::Local { let_token, pat, init, semi_token }: &html::Local) -> TokenStream {
+        let init = init.as_ref().map(|html::LocalInit { eq_token, expr, diverge }| {
+            let diverge = diverge.as_ref().map(|(token, block)| {
+                let block = Self::compile_block(block);
+                quote! {
+                    #token
+                    #block
+                }
+            });
+            quote! {
+                #eq_token
+                #expr
+                #diverge
+            }
+        });
+        quote! {
+            #let_token
+            #pat
+            #init
+            #semi_token
+        }
+    }
+
+    fn compile_block(item: &html::Block) -> TokenStream {
+        let items = item.content.iter().map(Self::compile_item);
+        quote! {
+            { #(#items)* }
+        }
+    }
+
+    fn compile_return(html::ExprReturn { return_token, expr }: &html::ExprReturn) -> TokenStream {
+        let expr = expr.as_ref().map(|item| Self::compile_item(&**item));
+        quote! {
+            #return_token
+            #expr
+        }
+    }
+
+    fn compile_break(html::ExprBreak { break_token, label, expr }: &html::ExprBreak) -> TokenStream {
+        let expr = expr.as_ref().map(|item| Self::compile_item(&**item));
+        quote! {
+            #break_token
+            #label
+            #expr
+        }
+    }
+
+    fn compile_continue(item: &html::ExprContinue) -> TokenStream {
+        quote! { #item }
+    }
+
+    fn compile_yield(html::ExprYield { yield_token, expr }: &html::ExprYield) -> TokenStream {
+        let expr = expr.as_deref().map(Self::compile_item);
+        quote! {
+            #yield_token
+            #expr
         }
     }
 }
@@ -176,10 +308,8 @@ mod parsing {
     use syn::{Error, Token};
     use syn::parse::{Parse, ParseStream};
     use syn::spanned::Spanned;
-    use syn::token::Paren;
     use crate::html;
     use crate::html::{ClosingTag, Element, ElementInline, ElementNormal, ElementUnclosed, EndToken, Html, Name, OpeningTag};
-    use crate::html::html_item::HtmlItemExpr;
 
     impl Parse for Html {
         fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -266,7 +396,7 @@ mod parsing {
     ) -> syn::Result<ElementParseItem> {
         let is_associated_tag = match (&name, closing_tag.as_ref().map(|tag| &tag.name)) {
             (Name::Ident(a), Some(Some(Name::Ident(b)))) => a == b,
-            (Name::Expr(_), Some(None)) => true,
+            (Name::Embedded(_), Some(None)) => true,
             _ => false,
         };
 
@@ -310,11 +440,9 @@ mod parsing {
                         assert!(closing_tag.is_none());
                     }
                 };
-            } else if input.peek(Paren) {
-                let value = input.parse()?;
-                out.push(html::Item::Expr(value));
             } else {
-                return Err(input.error("expected tag or parenthesized expression"));
+                let item = input.parse()?;
+                out.push(item);
             }
         }
         Ok(out)
@@ -346,9 +474,8 @@ mod parsing {
                     }
                 };
             } else {
-                let expr = input.parse::<HtmlItemExpr>()?;
-                children.push(html::Item::Expr(expr));
-                // unimplemented!()
+                let item = input.parse()?;
+                children.push(item);
             }
         }
 
@@ -365,4 +492,52 @@ mod parsing {
     }
 }
 
-mod to_tokens {}
+mod to_tokens {
+    use super::*;
+    use quote::{ToTokens, TokenStreamExt};
+
+    impl ToTokens for Html {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            tokens.append_all(&self.0);
+        }
+    }
+
+    impl ToTokens for Element {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            match self {
+                Element::Normal(item) => item.to_tokens(tokens),
+                Element::Unclosed(item) => item.to_tokens(tokens),
+                Element::Inline(item) => item.to_tokens(tokens),
+            }
+        }
+    }
+
+    impl ToTokens for ElementNormal {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            self.token.to_tokens(tokens);
+            self.name.to_tokens(tokens);
+            tokens.append_all(&self.attrs);
+            self.end.to_tokens(tokens);
+            tokens.append_all(&self.children);
+            self.closing.to_tokens(tokens);
+        }
+    }
+
+    impl ToTokens for ElementUnclosed {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            self.token.to_tokens(tokens);
+            self.name.to_tokens(tokens);
+            tokens.append_all(&self.attrs);
+            self.end.to_tokens(tokens);
+        }
+    }
+
+    impl ToTokens for ElementInline {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            self.token.to_tokens(tokens);
+            self.name.to_tokens(tokens);
+            tokens.append_all(&self.attrs);
+            self.end.to_tokens(tokens);
+        }
+    }
+}
