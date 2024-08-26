@@ -14,10 +14,10 @@ pub fn head(title: impl Into<String>) -> HtmlBundle {
                 integrity="sha384-Y7hw+L/jvKeWIRRkqWYfPcvVxHzVzn5REgzbawhxAuQGwX1XWe70vji+VSeHOThJ"
                 crossorigin="anonymous"></script>
             <link
-                href="https://unpkg.com/@csstools/normalize.css"
+                href="https://unpkg.com/normalize.css"
                 rel="stylesheet"/>
             <link
-                href="https://cdn.skypack.dev/sanitize.css"
+                href="https://unpkg.com/sanitize.css"
                 rel="stylesheet" />
             <link
                 href="https://unpkg.com/sanitize.css/forms.css"
@@ -25,8 +25,12 @@ pub fn head(title: impl Into<String>) -> HtmlBundle {
             <link
                 href="https://unpkg.com/sanitize.css/typography.css"
                 rel="stylesheet" />
-            <script src="https://cdn.jsdelivr.net/npm/@unocss/runtime"></script>
-            <script>(RawHtml::from_static(include_str!("unocss.js")))</script>
+            <link href="static/css/custom.css" rel="stylesheet">
+            <link href="static/css/global.css" rel="stylesheet">
+            <link href="static/css/button.css" rel="stylesheet">
+            <link href="static/css/header.css" rel="stylesheet">
+            // <script src="https://cdn.jsdelivr.net/npm/@unocss/runtime"></script>
+            // <script>(RawHtml::from_static(include_str!("unocss.js")))</script>
         </head>
     }
 }
@@ -58,3 +62,16 @@ impl Into<HtmlBundle> for Page {
         }
     }
 }
+
+macro_rules! page {
+    (
+        $title:expr;
+        $($t:tt)*
+    ) => {
+        crate::ui::PageBuilder::default()
+            .title($title)
+            .body(macros::html! { $($t)* })
+            .compile()
+    };
+}
+pub(crate) use page;

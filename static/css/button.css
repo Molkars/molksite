@@ -1,0 +1,24 @@
+
+button {
+    background-color: var(--primary-disabled);
+    color: var(--on-disabled);
+    border: none;
+    outline: none;
+    border-radius: 4px;
+    width: 240px;
+    max-width: 240px;
+}
+
+button [hx-trigger*="click"], [onclick] {
+    background-color: var(--primary-color-300);
+    color: var(--on-primary-light)
+}
+
+button:hover [hx-trigger*="click"], [onclick] {
+    background-color: var(--primary-color-500);
+}
+
+button:active [hx-trigger*="click"], [onclick] {
+    background-color: var(--primary-color-500);
+    outline: solid var(--primary-color-400);
+}

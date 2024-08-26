@@ -4,22 +4,14 @@ use macros::html;
 use crate::html::{HtmlBundle, Render};
 
 #[derive(Copy, Clone)]
-pub struct Menu(pub f32, pub f32);
-
-impl Default for Menu {
-    fn default() -> Self {
-        Self(24f32, 24f32)
-    }
-}
+pub struct Menu;
 
 impl From<Menu> for HtmlBundle {
     fn from(value: Menu) -> Self {
-        let Menu(w, h) = value;
         html! {
             <svg
-              width=(w)
-              height=(h)
-              viewBox=(format!("0 0 {w} {h}"))
+              class="size-6"
+              viewBox="0 0 24 24"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
             >

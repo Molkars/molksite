@@ -1,3 +1,4 @@
+use tower_http::services::ServeDir;
 
 mod html;
 mod ui;
@@ -5,7 +6,8 @@ mod routes;
 
 #[tokio::main]
 async fn main() {
-    let app = routes::routes();
+    let app = routes::routes()
+        .nest_service("/static", ServeDir::new("static"));
 
     let addr = ([127, 0, 0, 1], 8192).into();
     let server = axum_server::bind(addr);

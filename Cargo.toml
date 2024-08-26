@@ -24,3 +24,4 @@ parking_lot = "0.12.3"
 serde = "1.0.209"
 serde_derive = "*"
 keepcalm = "0.3.5"
+tower-http = { version = "0.5.2", features = ["fs"] }

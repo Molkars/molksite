@@ -25,7 +25,7 @@ impl Render for Button {
         let content = html! {
           <a
             class="inline-block
-                p-3
+                p-2
                 border focus:outline-none focus:ring
                 text-current active:text-fuchsia-500 hover:text-fuchsia-600
                 border-fuchsia-600"

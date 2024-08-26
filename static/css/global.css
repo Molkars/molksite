@@ -1,0 +1,24 @@
+
+html {
+    --primary-color-hue: 30;
+    --primary-color-sat: 85%;
+
+    --primary-color-50: hsl(var(--primary-color-hue), var(--primary-color-sat), 5%);
+    --primary-color-100: hsl(var(--primary-color-hue), var(--primary-color-sat), 10%);
+    --primary-color-200: hsl(var(--primary-color-hue), var(--primary-color-sat), 20%);
+    --primary-color-300: hsl(var(--primary-color-hue), var(--primary-color-sat), 30%);
+    --primary-color-400: hsl(var(--primary-color-hue), var(--primary-color-sat), 40%);
+    --primary-color-500: hsl(var(--primary-color-hue), var(--primary-color-sat), 50%);
+    --primary-color-600: hsl(var(--primary-color-hue), var(--primary-color-sat), 60%);
+    --primary-color-700: hsl(var(--primary-color-hue), var(--primary-color-sat), 70%);
+    --primary-color-800: hsl(var(--primary-color-hue), var(--primary-color-sat), 80%);
+    --primary-color-900: hsl(var(--primary-color-hue), var(--primary-color-sat), 90%);
+    --primary-accent: hsl(var(--primary-color-hue) + 7, var(--primary-color-sat) + 2.5%, 50%);
+    --on-primary: antiquewhite;
+    --on-primary-light: #202320;
+    --on-primary-dark: antiquewhite;
+
+    --primary-disabled: hsl(var(--primary-color-hue), 25%, 50%);
+: hsl(var(--primary-color-hue), var(--primary-color-sat), 90%);
+    --on-disabled: antiquewhite;
+}
